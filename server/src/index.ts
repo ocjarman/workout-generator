@@ -12,8 +12,8 @@ const PORT = process.env.PORT || 3000;
 app.use(cors({
   origin: [
     'http://localhost:5173', // Local development
-    'https://workout-generator-ocjarman.vercel.app', // Vercel frontend (will update with actual URL)
-    /\.vercel\.app$/ // Allow any Vercel preview deployments
+    'https://workout-generator-997qleozy-olivia-jarmans-projects.vercel.app', // Vercel preview
+    /https:\/\/.*\.vercel\.app$/ // Allow any Vercel deployments
   ],
   credentials: true
 }));

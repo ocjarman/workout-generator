@@ -14,7 +14,7 @@ interface WorkoutProps {
 const WorkoutCard: React.FC<WorkoutProps> = ({ workout }) => {
   const renderExercises = () => {
     const exercises = workout.exercises;
-    const sections = [];
+    const sections: React.JSX.Element[] = [];
 
     // Render different exercise types
     Object.keys(exercises).forEach((category) => {

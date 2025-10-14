@@ -10,6 +10,7 @@ A full-stack workout generator application built with React, TypeScript, Express
 - 🎨 Modern, responsive UI with smooth animations
 - 📱 Mobile-friendly design
 - 🔄 Toggle between daily and weekly views
+- 🚀 Auto-seeding database on deployment (no manual setup needed)
 
 ## Tech Stack
 
@@ -18,12 +19,14 @@ A full-stack workout generator application built with React, TypeScript, Express
 - TypeScript
 - Vite
 - CSS3 with custom properties
+- Deployed on Vercel
 
 ### Backend
 - Node.js
 - Express
 - TypeScript
 - PostgreSQL
+- Deployed on Render
 
 ## Weekly Schedule
 
@@ -71,11 +74,7 @@ A full-stack workout generator application built with React, TypeScript, Express
    npm install
    ```
 
-3. Seed the database:
-   ```bash
-   cd ../server
-   npm run seed
-   ```
+**Note:** The database will automatically seed with workout data when the server starts for the first time. No manual seeding required!
 
 ### Running the Application
 
@@ -106,30 +105,58 @@ npm run build
 npm start
 ```
 
-## Embedding in Portfolio
+## Deployment
 
-To embed this app in your portfolio:
+This app is currently deployed at:
+- **Frontend (Vercel)**: [Your Vercel URL]
+- **Backend (Render)**: [Your Render URL]
 
-1. Build the production version
-2. Deploy to a hosting service (Vercel, Netlify, Railway, etc.)
-3. Use an iframe in your portfolio:
-   ```html
-   <iframe src="https://your-deployed-url.com" width="100%" height="800px"></iframe>
-   ```
+### Deployment Architecture
 
-## Deployment Options
+**Frontend (Vercel)**
+- Deployed from the `client` directory
+- Automatically rebuilds on push to main branch
+- CORS configured to accept requests from Vercel preview URLs
 
-### Option 1: Vercel (Frontend) + Railway (Backend + Database)
+**Backend (Render)**
+- Deployed from the `server` directory  
+- PostgreSQL database included
+- Auto-seeds database on first startup
+- No manual database setup required!
+
+### Deploying Your Own Instance
+
+#### Option 1: Vercel (Frontend) + Render (Backend) - Recommended
+
+**Backend on Render:**
+1. Go to [Render](https://render.com)
+2. Create a new PostgreSQL database
+3. Create a Web Service:
+   - Connect your GitHub repository
+   - Root directory: `server`
+   - Build command: `npm install && npm run build`
+   - Start command: `npm start`
+   - Add environment variable: `DATABASE_URL` (auto-populated from PostgreSQL)
+4. Database will auto-seed on first deployment ✨
+
+**Frontend on Vercel:**
+1. Go to [Vercel](https://vercel.com)
+2. Import your repository
+3. Configure:
+   - Root directory: `client`
+   - Framework preset: Vite
+   - Build command: `npm run build`
+   - Output directory: `dist`
+4. Add environment variable: `VITE_API_URL=your-render-backend-url`
+5. Deploy!
+
+#### Option 2: Railway (Backend) + Vercel (Frontend)
+- Deploy PostgreSQL and server to Railway
 - Deploy client to Vercel
-- Deploy server and PostgreSQL to Railway
-- Update API endpoints in client to point to Railway backend
+- Update API endpoints accordingly
 
-### Option 2: Render (Full Stack)
-- Deploy both frontend and backend to Render
-- Use Render's PostgreSQL database
-
-### Option 3: Docker
-- Use the provided docker-compose.yml (if added)
+#### Option 3: Docker (Local/Self-hosted)
+- Use the provided `docker-compose.yml`
 - Deploy to any Docker-compatible hosting
 
 ## API Endpoints
@@ -140,10 +167,33 @@ To embed this app in your portfolio:
 
 ## Customization
 
-To customize the workouts, edit `server/src/seed.ts` and re-run:
+To customize the workouts:
+1. Edit the workout data in `server/src/index.ts` (lines 38-173)
+2. Clear your database: `DELETE FROM workouts;`
+3. Restart the server - it will auto-seed with your new workout data
+
+Alternatively, you can still use the seed script:
 ```bash
 npm run seed
 ```
+
+## Recent Updates
+
+### Auto-Seeding Feature
+- Database automatically seeds with workout data on first server startup
+- No manual database setup required for deployment
+- Checks if database is empty before seeding to prevent duplicates
+
+### Deployment Improvements
+- CORS configured to support Vercel preview and production URLs
+- Simplified deployment process with auto-initialization
+- Works seamlessly with Render's PostgreSQL database
+
+### Enhanced CORS Support
+- Localhost for development
+- Vercel preview URLs
+- Any Vercel deployment via regex pattern
+- Easy to extend for additional domains
 
 ## License
 

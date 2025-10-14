@@ -21,14 +21,17 @@ app.use(express.json());
 // Initialize database tables and seed if empty
 async function initializeDatabase() {
   try {
+    console.log('🔄 Initializing database...');
     await createTables();
     
     // Check if database is empty
+    console.log('🔍 Checking if database needs seeding...');
     const result = await pool.query('SELECT COUNT(*) FROM workouts');
     const count = parseInt(result.rows[0].count);
+    console.log(`📊 Found ${count} workouts in database`);
     
     if (count === 0) {
-      console.log('Database is empty. Seeding with workout data...');
+      console.log('🌱 Database is empty. Seeding with workout data...');
       
       // Import workout data
       const workouts = [
@@ -189,11 +192,17 @@ async function initializeDatabase() {
       console.log(`✅ Database already contains ${count} workouts`);
     }
   } catch (error) {
-    console.error('Error initializing database:', error);
+    console.error('❌ Error initializing database:', error);
+    console.error('Full error details:', JSON.stringify(error, null, 2));
   }
 }
 
-initializeDatabase();
+console.log('🚀 Starting database initialization...');
+initializeDatabase().then(() => {
+  console.log('✅ Database initialization complete');
+}).catch(err => {
+  console.error('❌ Database initialization failed:', err);
+});
 
 // Get all workouts
 app.get('/api/workouts', async (req, res) => {

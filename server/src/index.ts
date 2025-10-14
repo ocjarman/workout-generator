@@ -8,11 +8,12 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Allow requests from your frontend (update with your Vercel URL after deploying frontend)
+// Allow requests from your frontend
 app.use(cors({
   origin: [
     'http://localhost:5173', // Local development
-    'https://your-frontend.vercel.app' // Update this after deploying frontend
+    'https://workout-generator-ocjarman.vercel.app', // Vercel frontend (will update with actual URL)
+    /\.vercel\.app$/ // Allow any Vercel preview deployments
   ],
   credentials: true
 }));

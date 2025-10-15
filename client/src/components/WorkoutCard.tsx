@@ -4,6 +4,7 @@ import './WorkoutCard.css';
 
 interface WorkoutProps {
   workout: {
+    id: number;
     day_of_week: string;
     workout_type: string;
     exercises: any;
@@ -11,6 +12,8 @@ interface WorkoutProps {
     notes: string;
   };
   workoutStarted: boolean;
+  workoutStartTime: number | null;
+  auth0Id?: string;
   onWorkoutComplete: () => void;
 }
 
@@ -18,9 +21,10 @@ interface ExerciseCompletion {
   [key: string]: number; // category-index: completedSets
 }
 
-const WorkoutCard: React.FC<WorkoutProps> = ({ workout, workoutStarted, onWorkoutComplete }) => {
+const WorkoutCard: React.FC<WorkoutProps> = ({ workout, workoutStarted, workoutStartTime, auth0Id, onWorkoutComplete }) => {
   const [completedSets, setCompletedSets] = useState<ExerciseCompletion>({});
   const [showCompletion, setShowCompletion] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
 
   // Check if a category contains alternative exercises
   const isAlternativeCategory = (category: string) => {
@@ -205,6 +209,57 @@ const WorkoutCard: React.FC<WorkoutProps> = ({ workout, workoutStarted, onWorkou
     return sections;
   };
 
+  const handleFinishWorkout = async () => {
+    setIsSaving(true);
+    
+    if (auth0Id && workoutStartTime) {
+      try {
+        const endTime = Date.now();
+        const totalDuration = Math.floor((endTime - workoutStartTime) / 1000); // in seconds
+        
+        const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+        
+        console.log('💾 Saving workout progress...');
+        const response = await fetch(`${API_URL}/api/workout-progress/save`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            auth0_id: auth0Id,
+            workout_id: workout.id,
+            day_of_week: workout.day_of_week,
+            workout_type: workout.workout_type,
+            completed_exercises: completedSets,
+            start_time: new Date(workoutStartTime).toISOString(),
+            end_time: new Date(endTime).toISOString(),
+            total_duration: totalDuration,
+            completed: true,
+          }),
+        });
+        
+        if (response.ok) {
+          console.log('✅ Workout progress saved!');
+          toast.success('Workout saved to your history! 🎉');
+        } else {
+          const error = await response.text();
+          console.error('❌ Failed to save workout:', error);
+          if (error.includes('User not found')) {
+            toast.error('Please save your profile first before tracking workouts');
+          } else {
+            toast.error('Could not save workout progress');
+          }
+        }
+      } catch (error) {
+        console.error('❌ Error saving workout:', error);
+        toast.error('Could not save workout progress');
+      }
+    }
+    
+    setIsSaving(false);
+    onWorkoutComplete();
+  };
+
   if (showCompletion) {
     return (
       <div className="completion-screen">
@@ -218,8 +273,12 @@ const WorkoutCard: React.FC<WorkoutProps> = ({ workout, workoutStarted, onWorkou
               <span className="stat-label">Exercises Completed</span>
             </div>
           </div>
-          <button className="completion-btn" onClick={onWorkoutComplete}>
-            Finish Workout
+          <button 
+            className="completion-btn" 
+            onClick={handleFinishWorkout}
+            disabled={isSaving}
+          >
+            {isSaving ? 'Saving...' : 'Finish Workout'}
           </button>
         </div>
       </div>

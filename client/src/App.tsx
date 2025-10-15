@@ -4,6 +4,7 @@ import { useAuth0 } from '@auth0/auth0-react'
 import './App.css'
 import WorkoutCard from './components/WorkoutCard'
 import WeeklyView from './components/WeeklyView'
+import WorkoutHistory from './components/WorkoutHistory'
 import AuthButton from './components/AuthButton'
 
 interface Workout {
@@ -21,12 +22,14 @@ function App() {
   const [workouts, setWorkouts] = useState<Workout[]>([]);
   const [selectedDay, setSelectedDay] = useState<string>('');
   const [loading, setLoading] = useState(true);
-  const [view, setView] = useState<'today' | 'weekly'>('today');
+  const [view, setView] = useState<'today' | 'weekly' | 'history'>('today');
   const [workoutStarted, setWorkoutStarted] = useState(false);
   const [workoutStartTime, setWorkoutStartTime] = useState<number | null>(null);
   const [elapsedTime, setElapsedTime] = useState(0);
   const [syncStatus, setSyncStatus] = useState<string>('Not started');
   const [hasSyncedThisSession, setHasSyncedThisSession] = useState(false);
+  const [workoutHistory, setWorkoutHistory] = useState<any[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
 
   // Log authentication status for debugging
   useEffect(() => {
@@ -88,6 +91,45 @@ function App() {
     } catch (error: any) {
       console.error('❌ Error saving user:', error);
       setSyncStatus(`ERROR: ${error.message}`);
+    }
+  };
+
+  // Fetch workout history
+  const fetchWorkoutHistory = async () => {
+    if (!user?.sub) {
+      console.log('⏸️ No user to fetch history for');
+      return;
+    }
+
+    setHistoryLoading(true);
+    try {
+      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+      
+      console.log('📡 Fetching workout history...');
+      const response = await fetch(`${API_URL}/api/workout-progress/history`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          auth0_id: user.sub,
+        }),
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        console.log('✅ Workout history fetched:', data.length, 'workouts');
+        setWorkoutHistory(data);
+      } else {
+        const error = await response.text();
+        console.error('❌ Failed to fetch history:', error);
+        setWorkoutHistory([]);
+      }
+    } catch (error) {
+      console.error('❌ Error fetching history:', error);
+      setWorkoutHistory([]);
+    } finally {
+      setHistoryLoading(false);
     }
   };
 
@@ -343,6 +385,15 @@ function App() {
         >
           Weekly Schedule
         </button>
+        <button 
+          className={view === 'history' ? 'active' : ''} 
+          onClick={() => {
+            setView('history');
+            fetchWorkoutHistory();
+          }}
+        >
+          📊 History
+        </button>
       </div>
 
       {view === 'today' ? (
@@ -380,13 +431,24 @@ function App() {
               <WorkoutCard 
                 workout={selectedWorkout} 
                 workoutStarted={workoutStarted}
+                workoutStartTime={workoutStartTime}
+                auth0Id={user?.sub}
                 onWorkoutComplete={resetWorkout}
               />
             </>
           )}
         </>
-      ) : (
+      ) : view === 'weekly' ? (
         <WeeklyView workouts={workouts} />
+      ) : (
+        historyLoading ? (
+          <div className="loading-container">
+            <div className="spinner"></div>
+            <p>Loading your workout history...</p>
+          </div>
+        ) : (
+          <WorkoutHistory history={workoutHistory} />
+        )
       )}
     </div>
   )

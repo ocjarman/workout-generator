@@ -365,6 +365,81 @@ app.get('/api/users/me', checkJwt, async (req, res) => {
 });
 
 // Workout progress endpoints
+// Simple endpoint to save workout progress without JWT
+app.post('/api/workout-progress/save', async (req, res) => {
+  console.log('📨 Received POST /api/workout-progress/save request');
+  
+  try {
+    const { auth0_id, workout_id, day_of_week, workout_type, completed_exercises, start_time, end_time, total_duration, completed } = req.body;
+
+    console.log('Workout progress data received:', { auth0_id, workout_id, day_of_week, completed });
+
+    if (!auth0_id) {
+      console.error('❌ Missing auth0_id');
+      return res.status(400).json({ error: 'Missing auth0_id' });
+    }
+
+    // Get user from auth0_id
+    const user = await getUserByAuth0Id(auth0_id);
+    
+    if (!user) {
+      console.error('❌ User not found for auth0_id:', auth0_id);
+      return res.status(404).json({ error: 'User not found. Please save your profile first.' });
+    }
+
+    const result = await pool.query(
+      `INSERT INTO workout_progress 
+       (user_id, workout_id, completed_exercises, start_time, end_time, total_duration, completed)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)
+       RETURNING *`,
+      [user.id, workout_id, JSON.stringify(completed_exercises), start_time, end_time, total_duration, completed]
+    );
+
+    console.log('✅ Workout progress saved successfully:', result.rows[0].id);
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error('❌ Error saving workout progress:', error);
+    res.status(500).json({ error: 'Failed to save workout progress' });
+  }
+});
+
+// Get workout history for a user (no auth required, just pass auth0_id)
+app.post('/api/workout-progress/history', async (req, res) => {
+  console.log('📨 Received POST /api/workout-progress/history request');
+  
+  try {
+    const { auth0_id } = req.body;
+
+    if (!auth0_id) {
+      return res.status(400).json({ error: 'Missing auth0_id' });
+    }
+
+    const user = await getUserByAuth0Id(auth0_id);
+    
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    const limit = 30; // Last 30 workouts
+
+    const result = await pool.query(
+      `SELECT wp.*, w.day_of_week, w.workout_type 
+       FROM workout_progress wp
+       JOIN workouts w ON wp.workout_id = w.id
+       WHERE wp.user_id = $1
+       ORDER BY wp.workout_date DESC, wp.created_at DESC
+       LIMIT $2`,
+      [user.id, limit]
+    );
+
+    console.log(`✅ Found ${result.rows.length} workout history records`);
+    res.json(result.rows);
+  } catch (error) {
+    console.error('❌ Error fetching workout history:', error);
+    res.status(500).json({ error: 'Failed to fetch workout history' });
+  }
+});
+
 app.post('/api/workout-progress', checkJwt, async (req, res) => {
   try {
     const auth0Id = req.auth?.payload.sub;

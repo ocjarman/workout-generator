@@ -71,12 +71,47 @@
   border-left: 4px solid var(--primary-color);
 }
 
+.category-title-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
 .category-title {
   font-size: 0.9rem;
   font-weight: 700;
   letter-spacing: 1px;
   color: var(--primary-color);
-  margin-bottom: 1rem;
+}
+
+.alternative-badge {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--warning);
+  background: rgba(245, 158, 11, 0.1);
+  padding: 0.25rem 0.75rem;
+  border-radius: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  border: 1px solid var(--warning);
+}
+
+.exercise-category.alternatives {
+  border-left-color: var(--warning);
+  background: rgba(245, 158, 11, 0.03);
+}
+
+.exercise-item.alternative {
+  opacity: 0.9;
+}
+
+.alternative-dot {
+  margin-right: 0.5rem;
+  color: var(--warning);
+  font-size: 1.2rem;
 }
 
 .exercise-list {
@@ -401,5 +436,18 @@
   .exercise-header-row {
     flex-wrap: wrap;
     gap: 0.5rem;
+  }
+
+  .alternative-badge {
+    font-size: 0.7rem;
+    padding: 0.2rem 0.6rem;
+  }
+
+  .alternative-dot {
+    font-size: 1rem;
+  }
+
+  .category-title-row {
+    gap: 0.25rem;
   }
 }

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import toast from 'react-hot-toast';
 import './WorkoutCard.css';
 
 interface WorkoutProps {
@@ -21,17 +22,56 @@ const WorkoutCard: React.FC<WorkoutProps> = ({ workout, workoutStarted, onWorkou
   const [completedSets, setCompletedSets] = useState<ExerciseCompletion>({});
   const [showCompletion, setShowCompletion] = useState(false);
 
-  // Calculate total exercises and completed
+  // Check if a category contains alternative exercises
+  const isAlternativeCategory = (category: string) => {
+    const alternativeKeywords = ['choose one', 'pick one', 'select one', 'or', 'option'];
+    const categoryLower = category.toLowerCase();
+    const notesLower = workout.notes?.toLowerCase() || '';
+    
+    // Check if notes mention choosing from this category
+    const hasChooseOne = alternativeKeywords.some(keyword => 
+      notesLower.includes(keyword) && notesLower.includes(categoryLower)
+    );
+    
+    // Common alternative categories
+    const alternativeCategories = ['cardio', 'activities', 'optional'];
+    const isAlternativeCat = alternativeCategories.includes(categoryLower);
+    
+    return hasChooseOne || isAlternativeCat;
+  };
+
+  // Calculate total exercises and completed (counting alternatives as 1)
   const getTotalExercises = () => {
     let total = 0;
     Object.keys(workout.exercises).forEach((category) => {
-      total += workout.exercises[category].length;
+      if (isAlternativeCategory(category)) {
+        total += 1; // Only count as 1 exercise for alternatives
+      } else {
+        total += workout.exercises[category].length;
+      }
     });
     return total;
   };
 
   const getCompletedExercises = () => {
-    return Object.keys(completedSets).length;
+    let completed = 0;
+    const completedCategories = new Set<string>();
+    
+    Object.keys(completedSets).forEach((key) => {
+      const category = key.split('-')[0];
+      
+      if (isAlternativeCategory(category)) {
+        // Only count once per alternative category
+        if (!completedCategories.has(category)) {
+          completedCategories.add(category);
+          completed += 1;
+        }
+      } else {
+        completed += 1;
+      }
+    });
+    
+    return completed;
   };
 
   // Check if all exercises are complete
@@ -50,17 +90,32 @@ const WorkoutCard: React.FC<WorkoutProps> = ({ workout, workoutStarted, onWorkou
   }, [workoutStarted, workout.day_of_week]);
 
   const handleExerciseClick = (category: string, index: number, exercise: any) => {
-    if (!workoutStarted) return;
+    if (!workoutStarted) {
+      toast.error('Please tap "Start Workout" before tracking exercises!', {
+        icon: '⚠️',
+      });
+      return;
+    }
     
     const key = `${category}-${index}`;
     const totalSets = exercise.sets || exercise.rounds || 1;
     const currentCompleted = completedSets[key] || 0;
+    const isAlternative = isAlternativeCategory(category);
     
     if (currentCompleted < totalSets) {
-      setCompletedSets({
-        ...completedSets,
-        [key]: currentCompleted + 1
-      });
+      const newCompletedSets = { ...completedSets };
+      
+      if (isAlternative) {
+        // For alternatives: clear any other completed exercises in this category
+        Object.keys(newCompletedSets).forEach((k) => {
+          if (k.startsWith(`${category}-`) && k !== key) {
+            delete newCompletedSets[k];
+          }
+        });
+      }
+      
+      newCompletedSets[key] = currentCompleted + 1;
+      setCompletedSets(newCompletedSets);
     } else {
       // Reset if already completed
       const newCompleted = { ...completedSets };
@@ -94,10 +149,14 @@ const WorkoutCard: React.FC<WorkoutProps> = ({ workout, workoutStarted, onWorkou
     // Render different exercise types
     Object.keys(exercises).forEach((category) => {
       const categoryExercises = exercises[category];
+      const isAlternative = isAlternativeCategory(category);
       
       sections.push(
-        <div key={category} className="exercise-category">
-          <h3 className="category-title">{category.toUpperCase()}</h3>
+        <div key={category} className={`exercise-category ${isAlternative ? 'alternatives' : ''}`}>
+          <div className="category-title-row">
+            <h3 className="category-title">{category.toUpperCase()}</h3>
+            {isAlternative && <span className="alternative-badge">Choose One</span>}
+          </div>
           <div className="exercise-list">
             {categoryExercises.map((exercise: any, index: number) => {
               const isComplete = isExerciseComplete(category, index, exercise);
@@ -106,11 +165,14 @@ const WorkoutCard: React.FC<WorkoutProps> = ({ workout, workoutStarted, onWorkou
               return (
                 <div 
                   key={index} 
-                  className={`exercise-item ${workoutStarted ? 'clickable' : ''} ${isComplete ? 'completed' : ''}`}
+                  className={`exercise-item ${workoutStarted ? 'clickable' : ''} ${isComplete ? 'completed' : ''} ${isAlternative ? 'alternative' : ''}`}
                   onClick={() => handleExerciseClick(category, index, exercise)}
                 >
                   <div className="exercise-header-row">
-                    <div className="exercise-name">{exercise.name}</div>
+                    <div className="exercise-name">
+                      {isAlternative && <span className="alternative-dot">○</span>}
+                      {exercise.name}
+                    </div>
                     {workoutStarted && (
                       <div className="exercise-progress">
                         <span className="progress-text">{progress}</span>

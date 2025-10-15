@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { Toaster } from 'react-hot-toast'
 import './App.css'
 import WorkoutCard from './components/WorkoutCard'
 import WeeklyView from './components/WeeklyView'
@@ -94,6 +95,34 @@ function App() {
 
   return (
     <div className="app">
+      <Toaster
+        position="top-center"
+        toastOptions={{
+          duration: 3000,
+          style: {
+            background: '#1e293b',
+            color: '#f1f5f9',
+            border: '2px solid #6366f1',
+            borderRadius: '12px',
+            fontSize: '1rem',
+            fontWeight: '600',
+            padding: '1rem 1.5rem',
+            boxShadow: '0 10px 30px rgba(0, 0, 0, 0.5)',
+          },
+          success: {
+            iconTheme: {
+              primary: '#10b981',
+              secondary: '#f1f5f9',
+            },
+          },
+          error: {
+            iconTheme: {
+              primary: '#f59e0b',
+              secondary: '#f1f5f9',
+            },
+          },
+        }}
+      />
       <header className="app-header">
         <h1>💪 Weekly Workout Generator</h1>
         <p className="subtitle">Your personalized fitness schedule</p>

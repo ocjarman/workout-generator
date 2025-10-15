@@ -26,7 +26,6 @@ function App() {
   const [workoutStarted, setWorkoutStarted] = useState(false);
   const [workoutStartTime, setWorkoutStartTime] = useState<number | null>(null);
   const [elapsedTime, setElapsedTime] = useState(0);
-  const [syncStatus, setSyncStatus] = useState<string>('Not started');
   const [hasSyncedThisSession, setHasSyncedThisSession] = useState(false);
   const [workoutHistory, setWorkoutHistory] = useState<any[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
@@ -41,58 +40,54 @@ function App() {
     setTodaysDay();
   }, []);
 
-  // Simple function to save user to database
-  const saveUserToDatabase = async () => {
-    console.log('💾 Saving user to database...');
-    setSyncStatus('Saving...');
-    
-    if (!isAuthenticated || !user) {
-      console.log('⏸️ Not authenticated');
-      setSyncStatus('Not authenticated');
-      return;
-    }
-    
-    try {
-      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+  // Automatically save user to database after authentication
+  useEffect(() => {
+    const saveUserToDatabase = async () => {
+      if (!isAuthenticated || !user || authLoading || hasSyncedThisSession) {
+        return;
+      }
       
-      console.log('📡 Sending user data to:', `${API_URL}/api/users/save`);
-      console.log('📤 User data:', {
-        auth0_id: user.sub,
-        email: user.email,
-        name: user.name,
-        picture: user.picture
-      });
+      console.log('💾 Auto-saving user to database...');
+      setHasSyncedThisSession(true);
       
-      const response = await fetch(`${API_URL}/api/users/save`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
+      try {
+        const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+        
+        console.log('📡 Sending user data to:', `${API_URL}/api/users/save`);
+        console.log('📤 User data:', {
           auth0_id: user.sub,
           email: user.email,
           name: user.name,
-          picture: user.picture,
-        }),
-      });
-      
-      console.log('📥 Response status:', response.status);
-      
-      if (!response.ok) {
-        const errorData = await response.text();
-        console.error('❌ Failed to save user:', response.status, errorData);
-        setSyncStatus(`ERROR: ${response.status} - ${errorData.substring(0, 50)}`);
-      } else {
-        const userData = await response.json();
-        console.log('✅ User saved successfully:', userData);
-        setSyncStatus(`✅ Saved! User ID: ${userData.id}`);
-        setHasSyncedThisSession(true);
+          picture: user.picture
+        });
+        
+        const response = await fetch(`${API_URL}/api/users/save`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            auth0_id: user.sub,
+            email: user.email,
+            name: user.name,
+            picture: user.picture,
+          }),
+        });
+        
+        if (response.ok) {
+          const userData = await response.json();
+          console.log('✅ User saved successfully:', userData);
+        } else {
+          const errorData = await response.text();
+          console.error('❌ Failed to save user:', response.status, errorData);
+        }
+      } catch (error: any) {
+        console.error('❌ Error saving user:', error);
       }
-    } catch (error: any) {
-      console.error('❌ Error saving user:', error);
-      setSyncStatus(`ERROR: ${error.message}`);
-    }
-  };
+    };
+
+    saveUserToDatabase();
+  }, [isAuthenticated, user, authLoading, hasSyncedThisSession]);
 
   // Fetch workout history
   const fetchWorkoutHistory = async () => {
@@ -132,30 +127,6 @@ function App() {
       setHistoryLoading(false);
     }
   };
-
-  // AUTO-SYNC DISABLED TO PREVENT INFINITE LOOPS
-  // Use the manual "Test Sync User" button instead
-  // 
-  // To re-enable auto-sync in the future, uncomment this and wrap manualSyncUser in useCallback
-  /*
-  useEffect(() => {
-    console.log('🔄 syncUser useEffect triggered', { isAuthenticated, authLoading, hasUser: !!user, hasSynced: hasSyncedThisSession });
-    
-    // Only sync once per session and only when fully authenticated
-    if (!isAuthenticated || authLoading || !user || hasSyncedThisSession) {
-      console.log('⏸️ Skipping auto-sync');
-      return;
-    }
-    
-    const syncUser = async () => {
-      console.log('🔄 Auto-syncing user on login...');
-      setHasSyncedThisSession(true);
-      await manualSyncUser();
-    };
-
-    syncUser();
-  }, [isAuthenticated, user, authLoading, hasSyncedThisSession]);
-  */
 
   // Timer effect
   useEffect(() => {
@@ -342,29 +313,7 @@ function App() {
           <div className="header-text">
             <h1>💪 Weekly Workout Generator</h1>
             {user && (
-              <>
-                <p className="welcome-message">Welcome back, {user.name || user.email}! 👋</p>
-                <div style={{ marginTop: '10px', padding: '10px', background: 'rgba(255,255,255,0.1)', borderRadius: '8px' }}>
-                  <p style={{ fontSize: '0.9rem', margin: '5px 0' }}>
-                    Status: <strong>{syncStatus}</strong>
-                  </p>
-                  <button 
-                    onClick={saveUserToDatabase}
-                    style={{
-                      padding: '8px 16px',
-                      background: '#10b981',
-                      color: 'white',
-                      border: 'none',
-                      borderRadius: '6px',
-                      cursor: 'pointer',
-                      fontSize: '0.9rem',
-                      fontWeight: '600'
-                    }}
-                  >
-                    💾 Save My Profile to Database
-                  </button>
-                </div>
-              </>
+              <p className="welcome-message">Welcome back, {user.name || user.email}! 👋</p>
             )}
             <p className="subtitle">Your personalized fitness schedule</p>
           </div>

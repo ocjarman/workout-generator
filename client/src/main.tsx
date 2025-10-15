@@ -32,11 +32,8 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
       clientId={clientId}
       authorizationParams={{
         redirect_uri: window.location.origin,
-        ...(audience && { audience }), // Only include audience if it's set and API exists
       }}
       onRedirectCallback={onRedirectCallback}
-      useRefreshTokens={true}
-      cacheLocation="localstorage"
     >
       <App />
     </Auth0Provider>

@@ -1,3 +1,15 @@
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.8;
+    transform: scale(1.05);
+  }
+}
+
 .app {
   max-width: 1200px;
   margin: 0 auto;

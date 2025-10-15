@@ -272,21 +272,75 @@ app.get('/api/workouts/today/current', async (req, res) => {
 });
 
 // User endpoints
-app.post('/api/users/me', checkJwt, async (req, res) => {
+// Simple endpoint to save user without JWT authentication
+app.post('/api/users/save', async (req, res) => {
+  console.log('📨 Received POST /api/users/save request');
+  
   try {
-    const auth0Id = req.auth?.payload.sub;
-    const { email, name, picture } = req.body;
+    const { auth0_id, email, name, picture } = req.body;
 
-    if (!auth0Id || !email) {
+    console.log('User data received:', { auth0_id, email, name });
+
+    if (!auth0_id || !email) {
+      console.error('❌ Missing auth0_id or email');
       return res.status(400).json({ error: 'Missing required user information' });
     }
 
-    const user = await findOrCreateUser(auth0Id, email, name, picture);
+    const user = await findOrCreateUser(auth0_id, email, name, picture);
+    console.log('✅ User saved successfully:', user.id, user.email);
     res.json(user);
   } catch (error) {
-    console.error('Error creating/updating user:', error);
-    res.status(500).json({ error: 'Failed to create or update user' });
+    console.error('❌ Error saving user:', error);
+    res.status(500).json({ error: 'Failed to save user' });
   }
+});
+
+app.post('/api/users/me', async (req, res) => {
+  console.log('📨 Received POST /api/users/me request');
+  
+  const authHeader = req.headers.authorization;
+  console.log('Authorization header present:', !!authHeader);
+  
+  if (authHeader) {
+    const token = authHeader.replace('Bearer ', '');
+    console.log('Token length:', token.length);
+    console.log('Token preview:', token.substring(0, 50) + '...');
+    const parts = token.split('.');
+    console.log('Token parts:', parts.length, '(should be 3 for JWT)');
+  }
+  
+  // Apply JWT verification
+  return checkJwt(req, res, async (err) => {
+    if (err) {
+      console.error('❌ JWT verification failed:', err.message);
+      console.error('Error details:', err);
+      return res.status(401).json({ 
+        error: 'Authentication failed', 
+        message: err.message,
+        hint: 'Make sure VITE_AUTH0_AUDIENCE is set correctly in your client .env file'
+      });
+    }
+    
+    try {
+      const auth0Id = req.auth?.payload.sub;
+      const { email, name, picture } = req.body;
+
+      console.log('Auth0 ID:', auth0Id);
+      console.log('User email:', email);
+
+      if (!auth0Id || !email) {
+        console.error('❌ Missing auth0Id or email');
+        return res.status(400).json({ error: 'Missing required user information' });
+      }
+
+      const user = await findOrCreateUser(auth0Id, email, name, picture);
+      console.log('✅ User synced successfully:', user.id, user.email);
+      res.json(user);
+    } catch (error) {
+      console.error('❌ Error creating/updating user:', error);
+      res.status(500).json({ error: 'Failed to create or update user' });
+    }
+  });
 });
 
 app.get('/api/users/me', checkJwt, async (req, res) => {

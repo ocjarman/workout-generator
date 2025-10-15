@@ -97,6 +97,83 @@
   box-shadow: 0 5px 15px rgba(99, 102, 241, 0.4);
 }
 
+.workout-start-container {
+  text-align: center;
+  margin: 3rem 0;
+  padding: 2rem;
+  background: var(--surface);
+  border-radius: 20px;
+  border: 2px dashed var(--border);
+}
+
+.start-workout-btn {
+  padding: 1.5rem 4rem;
+  font-size: 1.5rem;
+  font-weight: 700;
+  background: linear-gradient(
+    135deg,
+    var(--primary-color),
+    var(--primary-dark)
+  );
+  color: white;
+  border: none;
+  border-radius: 15px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 10px 30px rgba(99, 102, 241, 0.3);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.start-workout-btn:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 15px 40px rgba(99, 102, 241, 0.4);
+}
+
+.start-workout-btn:active {
+  transform: translateY(-1px);
+}
+
+.start-hint {
+  margin-top: 1rem;
+  color: var(--text-secondary);
+  font-size: 0.95rem;
+}
+
+.workout-timer {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: var(--surface);
+  padding: 1rem;
+  border-radius: 15px;
+  margin-bottom: 1.5rem;
+  box-shadow: 0 5px 20px rgba(0, 0, 0, 0.3);
+  border: 2px solid var(--primary-color);
+}
+
+.timer-display {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+}
+
+.timer-label {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.timer-value {
+  font-size: 2rem;
+  font-weight: 700;
+  color: var(--primary-color);
+  font-family: "Courier New", monospace;
+  min-width: 100px;
+  text-align: center;
+}
+
 @media (max-width: 768px) {
   .app {
     padding: 1rem;
@@ -122,5 +199,18 @@
 
   .view-toggle button {
     width: 100%;
+  }
+
+  .start-workout-btn {
+    padding: 1.2rem 2.5rem;
+    font-size: 1.2rem;
+  }
+
+  .timer-value {
+    font-size: 1.5rem;
+  }
+
+  .timer-label {
+    font-size: 0.9rem;
   }
 }

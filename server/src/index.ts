@@ -205,10 +205,21 @@ initializeDatabase().then(() => {
   console.error('❌ Database initialization failed:', err);
 });
 
-// Get all workouts
+// Get all workouts - one random workout per day
 app.get('/api/workouts', async (req, res) => {
   try {
-    const result = await pool.query('SELECT * FROM workouts ORDER BY day_number');
+    // Get a random workout for each day of the week
+    const result = await pool.query(`
+      WITH ranked_workouts AS (
+        SELECT *,
+               ROW_NUMBER() OVER (PARTITION BY day_of_week ORDER BY RANDOM()) as rn
+        FROM workouts
+      )
+      SELECT id, day_of_week, day_number, workout_type, exercises, duration, notes, created_at
+      FROM ranked_workouts
+      WHERE rn = 1
+      ORDER BY day_number
+    `);
     res.json(result.rows);
   } catch (error) {
     console.error('Error fetching workouts:', error);
@@ -216,12 +227,12 @@ app.get('/api/workouts', async (req, res) => {
   }
 });
 
-// Get workout by day
+// Get workout by day - randomly select from available workouts for that day
 app.get('/api/workouts/:day', async (req, res) => {
   const { day } = req.params;
   try {
     const result = await pool.query(
-      'SELECT * FROM workouts WHERE LOWER(day_of_week) = LOWER($1)',
+      'SELECT * FROM workouts WHERE LOWER(day_of_week) = LOWER($1) ORDER BY RANDOM() LIMIT 1',
       [day]
     );
     
@@ -236,14 +247,14 @@ app.get('/api/workouts/:day', async (req, res) => {
   }
 });
 
-// Get today's workout
+// Get today's workout - randomly select from available workouts for today
 app.get('/api/workouts/today/current', async (req, res) => {
   const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
   const today = days[new Date().getDay()];
   
   try {
     const result = await pool.query(
-      'SELECT * FROM workouts WHERE day_of_week = $1',
+      'SELECT * FROM workouts WHERE day_of_week = $1 ORDER BY RANDOM() LIMIT 1',
       [today]
     );
     

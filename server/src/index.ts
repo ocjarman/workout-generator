@@ -2,6 +2,8 @@ import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import { pool, createTables } from './database.js';
+import { checkJwt, optionalAuth } from './auth.js';
+import { findOrCreateUser, getUserByAuth0Id } from './userService.js';
 
 dotenv.config();
 
@@ -266,6 +268,144 @@ app.get('/api/workouts/today/current', async (req, res) => {
   } catch (error) {
     console.error('Error fetching today\'s workout:', error);
     res.status(500).json({ error: 'Failed to fetch today\'s workout' });
+  }
+});
+
+// User endpoints
+app.post('/api/users/me', checkJwt, async (req, res) => {
+  try {
+    const auth0Id = req.auth?.payload.sub;
+    const { email, name, picture } = req.body;
+
+    if (!auth0Id || !email) {
+      return res.status(400).json({ error: 'Missing required user information' });
+    }
+
+    const user = await findOrCreateUser(auth0Id, email, name, picture);
+    res.json(user);
+  } catch (error) {
+    console.error('Error creating/updating user:', error);
+    res.status(500).json({ error: 'Failed to create or update user' });
+  }
+});
+
+app.get('/api/users/me', checkJwt, async (req, res) => {
+  try {
+    const auth0Id = req.auth?.payload.sub;
+
+    if (!auth0Id) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    const user = await getUserByAuth0Id(auth0Id);
+    
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    res.json(user);
+  } catch (error) {
+    console.error('Error fetching user:', error);
+    res.status(500).json({ error: 'Failed to fetch user' });
+  }
+});
+
+// Workout progress endpoints
+app.post('/api/workout-progress', checkJwt, async (req, res) => {
+  try {
+    const auth0Id = req.auth?.payload.sub;
+    
+    if (!auth0Id) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    const user = await getUserByAuth0Id(auth0Id);
+    
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    const { workout_id, completed_exercises, start_time, end_time, total_duration, completed } = req.body;
+
+    const result = await pool.query(
+      `INSERT INTO workout_progress 
+       (user_id, workout_id, completed_exercises, start_time, end_time, total_duration, completed)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)
+       ON CONFLICT (user_id, workout_id, workout_date)
+       DO UPDATE SET 
+         completed_exercises = $3,
+         end_time = $5,
+         total_duration = $6,
+         completed = $7
+       RETURNING *`,
+      [user.id, workout_id, JSON.stringify(completed_exercises), start_time, end_time, total_duration, completed]
+    );
+
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error('Error saving workout progress:', error);
+    res.status(500).json({ error: 'Failed to save workout progress' });
+  }
+});
+
+app.get('/api/workout-progress/today', checkJwt, async (req, res) => {
+  try {
+    const auth0Id = req.auth?.payload.sub;
+    
+    if (!auth0Id) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    const user = await getUserByAuth0Id(auth0Id);
+    
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    const result = await pool.query(
+      `SELECT * FROM workout_progress 
+       WHERE user_id = $1 AND workout_date = CURRENT_DATE
+       ORDER BY created_at DESC`,
+      [user.id]
+    );
+
+    res.json(result.rows);
+  } catch (error) {
+    console.error('Error fetching workout progress:', error);
+    res.status(500).json({ error: 'Failed to fetch workout progress' });
+  }
+});
+
+app.get('/api/workout-progress/history', checkJwt, async (req, res) => {
+  try {
+    const auth0Id = req.auth?.payload.sub;
+    
+    if (!auth0Id) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    const user = await getUserByAuth0Id(auth0Id);
+    
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    const limit = parseInt(req.query.limit as string) || 30;
+
+    const result = await pool.query(
+      `SELECT wp.*, w.day_of_week, w.workout_type 
+       FROM workout_progress wp
+       JOIN workouts w ON wp.workout_id = w.id
+       WHERE wp.user_id = $1
+       ORDER BY wp.workout_date DESC
+       LIMIT $2`,
+      [user.id, limit]
+    );
+
+    res.json(result.rows);
+  } catch (error) {
+    console.error('Error fetching workout history:', error);
+    res.status(500).json({ error: 'Failed to fetch workout history' });
   }
 });
 

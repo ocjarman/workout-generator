@@ -6,9 +6,21 @@
 }
 
 .app-header {
-  text-align: center;
   margin-bottom: 2rem;
   padding: 2rem 0;
+}
+
+.header-content {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 2rem;
+  flex-wrap: wrap;
+}
+
+.header-text {
+  flex: 1;
+  min-width: 250px;
 }
 
 .app-header h1 {
@@ -27,6 +39,77 @@
 .subtitle {
   color: var(--text-secondary);
   font-size: 1.1rem;
+}
+
+.welcome-message {
+  color: var(--primary-color);
+  font-size: 1.2rem;
+  font-weight: 600;
+  margin: 0.5rem 0;
+}
+
+.login-screen {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+  background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+}
+
+.login-content {
+  max-width: 500px;
+  text-align: center;
+  background: var(--surface);
+  padding: 3rem 2rem;
+  border-radius: 20px;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+  border: 1px solid var(--border);
+}
+
+.login-content h1 {
+  font-size: 2.5rem;
+  background: linear-gradient(
+    135deg,
+    var(--primary-color),
+    var(--secondary-color)
+  );
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  margin-bottom: 1rem;
+}
+
+.login-subtitle {
+  color: var(--text-secondary);
+  font-size: 1.1rem;
+  margin-bottom: 2rem;
+  line-height: 1.6;
+}
+
+.login-features {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  margin: 2rem 0;
+  text-align: left;
+}
+
+.feature {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem;
+  background: rgba(99, 102, 241, 0.1);
+  border-radius: 12px;
+  color: var(--text-primary);
+  font-size: 1rem;
+  font-weight: 500;
+}
+
+.feature-icon {
+  font-size: 1.5rem;
+  flex-shrink: 0;
 }
 
 .view-toggle {
@@ -179,8 +262,23 @@
     padding: 1rem;
   }
 
+  .header-content {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1rem;
+  }
+
+  .header-text {
+    text-align: center;
+    width: 100%;
+  }
+
   .app-header h1 {
     font-size: 2rem;
+  }
+
+  .subtitle {
+    font-size: 1rem;
   }
 
   .day-selector {
@@ -212,5 +310,30 @@
 
   .timer-label {
     font-size: 0.9rem;
+  }
+
+  .login-content {
+    padding: 2rem 1.5rem;
+  }
+
+  .login-content h1 {
+    font-size: 2rem;
+  }
+
+  .login-subtitle {
+    font-size: 1rem;
+  }
+
+  .feature {
+    font-size: 0.9rem;
+    padding: 0.75rem;
+  }
+
+  .feature-icon {
+    font-size: 1.3rem;
+  }
+
+  .welcome-message {
+    font-size: 1rem;
   }
 }

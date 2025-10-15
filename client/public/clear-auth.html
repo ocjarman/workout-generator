@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Clear Auth Data</title>
+    <style>
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 100vh;
+        background: #0f172a;
+        color: #f1f5f9;
+        text-align: center;
+      }
+      .container {
+        max-width: 500px;
+        padding: 2rem;
+        background: #1e293b;
+        border-radius: 15px;
+        border: 2px solid #6366f1;
+      }
+      button {
+        padding: 1rem 2rem;
+        background: #6366f1;
+        color: white;
+        border: none;
+        border-radius: 10px;
+        font-size: 1rem;
+        cursor: pointer;
+        margin: 0.5rem;
+      }
+      button:hover {
+        background: #4f46e5;
+      }
+      .success {
+        color: #10b981;
+        margin-top: 1rem;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>🔧 Fix Auth0 "Invalid State"</h1>
+      <p>Click the button below to clear Auth0 data and fix the login issue.</p>
+      <button onclick="clearAuth()">Clear Auth Data</button>
+      <div id="message"></div>
+    </div>
+
+    <script>
+      function clearAuth() {
+        // Clear localStorage
+        Object.keys(localStorage).forEach((key) => {
+          if (key.includes("auth0") || key.includes("@@auth0")) {
+            localStorage.removeItem(key);
+          }
+        });
+
+        // Clear sessionStorage
+        Object.keys(sessionStorage).forEach((key) => {
+          if (key.includes("auth0") || key.includes("@@auth0")) {
+            sessionStorage.removeItem(key);
+          }
+        });
+
+        document.getElementById("message").innerHTML =
+          '<p class="success">✅ Auth data cleared!<br>Redirecting to home...</p>';
+
+        setTimeout(() => {
+          window.location.href = "/";
+        }, 2000);
+      }
+    </script>
+  </body>
+</html>

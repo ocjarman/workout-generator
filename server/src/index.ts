@@ -19,8 +19,14 @@ app.use(cors({
     /^https:\/\/.*\.vercel\.app$/, // Allow any Vercel deployments
     process.env.FRONTEND_URL // Production frontend URL from env variable
   ].filter(Boolean), // Remove undefined values
-  credentials: true
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'], // Explicitly allow all methods
+  allowedHeaders: ['Content-Type', 'Authorization'], // Explicitly allow these headers
 }));
+
+// Handle preflight requests explicitly
+app.options('*', cors());
+
 app.use(express.json());
 
 // Initialize database tables and seed if empty

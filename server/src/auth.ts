@@ -8,20 +8,6 @@ export const checkJwt = auth({
   tokenSigningAlg: 'RS256'
 });
 
-// Extend Express Request type to include auth
-declare global {
-  namespace Express {
-    interface Request {
-      auth?: {
-        payload: {
-          sub?: string;
-          [key: string]: any;
-        };
-      };
-    }
-  }
-}
-
 // Optional authentication middleware - doesn't require auth but adds user if present
 export const optionalAuth = (req: Request, res: Response, next: NextFunction) => {
   const authHeader = req.headers.authorization;

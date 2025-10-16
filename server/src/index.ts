@@ -11,14 +11,20 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 // Allow requests from your frontend
+const allowedOrigins: (string | RegExp)[] = [
+  'http://localhost:5173', // Local development
+  'http://localhost:5174', // Alternative local port
+  'https://workout-eta.vercel.app', // Vercel preview
+  /^https:\/\/.*\.vercel\.app$/, // Allow any Vercel deployments
+];
+
+// Add production frontend URL if it exists
+if (process.env.FRONTEND_URL) {
+  allowedOrigins.push(process.env.FRONTEND_URL);
+}
+
 app.use(cors({
-  origin: [
-    'http://localhost:5173', // Local development
-    'http://localhost:5174', // Alternative local port
-    'https://workout-eta.vercel.app', // Vercel preview
-    /^https:\/\/.*\.vercel\.app$/, // Allow any Vercel deployments
-    process.env.FRONTEND_URL // Production frontend URL from env variable
-  ].filter(Boolean), // Remove undefined values
+  origin: allowedOrigins,
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'], // Explicitly allow all methods
   allowedHeaders: ['Content-Type', 'Authorization'], // Explicitly allow these headers

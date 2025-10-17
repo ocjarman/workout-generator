@@ -1,7 +1,16 @@
 import { pool, createTables } from './database.js';
 
+interface Workout {
+  day_of_week: string;
+  day_number: number;
+  workout_type: string;
+  duration: number;
+  exercises: any;
+  notes: string;
+}
+
 // Add new workouts WITHOUT deleting existing ones
-const newWorkouts = [
+const newWorkouts: Workout[] = [
   // Add your new workouts here
   // Example:
   // {

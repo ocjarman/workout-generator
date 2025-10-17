@@ -62,16 +62,26 @@ const WorkoutCard: React.FC<WorkoutProps> = ({ workout, workoutStarted, workoutS
     const completedCategories = new Set<string>();
     
     Object.keys(completedSets).forEach((key) => {
-      const category = key.split('-')[0];
+      const [category, indexStr] = key.split('-');
+      const index = parseInt(indexStr);
+      const exercise = workout.exercises[category]?.[index];
       
-      if (isAlternativeCategory(category)) {
-        // Only count once per alternative category
-        if (!completedCategories.has(category)) {
-          completedCategories.add(category);
+      if (!exercise) return;
+      
+      const totalSets = getExerciseTotalSets(exercise);
+      const completedSetsForExercise = completedSets[key];
+      
+      // Only count if ALL sets are complete
+      if (completedSetsForExercise >= totalSets) {
+        if (isAlternativeCategory(category)) {
+          // Only count once per alternative category
+          if (!completedCategories.has(category)) {
+            completedCategories.add(category);
+            completed += 1;
+          }
+        } else {
           completed += 1;
         }
-      } else {
-        completed += 1;
       }
     });
     

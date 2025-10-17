@@ -401,10 +401,18 @@ app.post('/api/workout-progress/save', async (req, res) => {
       return res.status(404).json({ error: 'User not found. Please save your profile first.' });
     }
 
+    // Use UPSERT to insert or update existing workout for the same day
     const result = await pool.query(
       `INSERT INTO workout_progress 
        (user_id, workout_id, completed_exercises, start_time, end_time, total_duration, completed)
        VALUES ($1, $2, $3, $4, $5, $6, $7)
+       ON CONFLICT (user_id, workout_id, workout_date)
+       DO UPDATE SET
+         completed_exercises = EXCLUDED.completed_exercises,
+         start_time = EXCLUDED.start_time,
+         end_time = EXCLUDED.end_time,
+         total_duration = EXCLUDED.total_duration,
+         completed = EXCLUDED.completed
        RETURNING *`,
       [user.id, workout_id, JSON.stringify(completed_exercises), start_time, end_time, total_duration, completed]
     );
@@ -414,6 +422,125 @@ app.post('/api/workout-progress/save', async (req, res) => {
   } catch (error) {
     console.error('❌ Error saving workout progress:', error);
     res.status(500).json({ error: 'Failed to save workout progress' });
+  }
+});
+
+// Check if user has completed ANY workout for a specific date
+app.post('/api/workout-progress/check-day', async (req, res) => {
+  console.log('📨 Received POST /api/workout-progress/check-day request');
+  
+  try {
+    const { auth0_id, workout_date } = req.body;
+
+    if (!auth0_id) {
+      return res.status(400).json({ error: 'Missing auth0_id' });
+    }
+
+    const user = await getUserByAuth0Id(auth0_id);
+    
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    // If no date provided, use today's date
+    const dateToQuery = workout_date || new Date().toISOString().split('T')[0];
+
+    const result = await pool.query(
+      `SELECT * FROM workout_progress 
+       WHERE user_id = $1 AND workout_date = $2 AND completed = true
+       ORDER BY created_at DESC
+       LIMIT 1`,
+      [user.id, dateToQuery]
+    );
+
+    if (result.rows.length === 0) {
+      return res.json({ hasCompletedWorkout: false });
+    }
+
+    console.log(`✅ User has completed a workout on ${dateToQuery}`);
+    res.json({ hasCompletedWorkout: true, workout: result.rows[0] });
+  } catch (error) {
+    console.error('❌ Error checking workout for day:', error);
+    res.status(500).json({ error: 'Failed to check workout for day' });
+  }
+});
+
+// Get workout progress for a specific workout on a specific date
+app.post('/api/workout-progress/get', async (req, res) => {
+  console.log('📨 Received POST /api/workout-progress/get request');
+  
+  try {
+    const { auth0_id, workout_id, workout_date } = req.body;
+
+    if (!auth0_id || !workout_id) {
+      return res.status(400).json({ error: 'Missing auth0_id or workout_id' });
+    }
+
+    const user = await getUserByAuth0Id(auth0_id);
+    
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    // If no date provided, use today's date
+    const dateToQuery = workout_date || new Date().toISOString().split('T')[0];
+
+    const result = await pool.query(
+      `SELECT * FROM workout_progress 
+       WHERE user_id = $1 AND workout_id = $2 AND workout_date = $3
+       ORDER BY created_at DESC
+       LIMIT 1`,
+      [user.id, workout_id, dateToQuery]
+    );
+
+    if (result.rows.length === 0) {
+      return res.json(null);
+    }
+
+    console.log(`✅ Found workout progress for workout ${workout_id}`);
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error('❌ Error fetching workout progress:', error);
+    res.status(500).json({ error: 'Failed to fetch workout progress' });
+  }
+});
+
+// Reset/delete workout progress for a specific workout on a specific date
+app.post('/api/workout-progress/reset', async (req, res) => {
+  console.log('📨 Received POST /api/workout-progress/reset request');
+  
+  try {
+    const { auth0_id, workout_id, workout_date } = req.body;
+
+    if (!auth0_id || !workout_id) {
+      return res.status(400).json({ error: 'Missing auth0_id or workout_id' });
+    }
+
+    const user = await getUserByAuth0Id(auth0_id);
+    
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    // If no date provided, use today's date
+    const dateToQuery = workout_date || new Date().toISOString().split('T')[0];
+
+    const result = await pool.query(
+      `DELETE FROM workout_progress 
+       WHERE user_id = $1 AND workout_id = $2 AND workout_date = $3
+       RETURNING *`,
+      [user.id, workout_id, dateToQuery]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'No workout progress found to reset' });
+    }
+
+    console.log(`✅ Reset workout progress for workout ${workout_id}`);
+    res.json({ success: true, deleted: result.rows[0] });
+  } catch (error) {
+    console.error('❌ Error resetting workout progress:', error);
+    res.status(500).json({ error: 'Failed to reset workout progress' });
   }
 });
 

@@ -15,16 +15,21 @@ interface WorkoutProps {
   workoutStartTime: number | null;
   auth0Id?: string;
   onWorkoutComplete: () => void;
+  onHasExistingProgress?: (hasProgress: boolean) => void;
 }
 
 interface ExerciseCompletion {
   [key: string]: number; // category-index: completedSets
 }
 
-const WorkoutCard: React.FC<WorkoutProps> = ({ workout, workoutStarted, workoutStartTime, auth0Id, onWorkoutComplete }) => {
+const WorkoutCard: React.FC<WorkoutProps> = ({ workout, workoutStarted, workoutStartTime, auth0Id, onWorkoutComplete, onHasExistingProgress }) => {
   const [completedSets, setCompletedSets] = useState<ExerciseCompletion>({});
   const [showCompletion, setShowCompletion] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [loadingProgress, setLoadingProgress] = useState(true);
+  const [hasExistingProgress, setHasExistingProgress] = useState(false);
+  const [dayCompleted, setDayCompleted] = useState(false);
+  const [hasCompletedWorkoutForDay, setHasCompletedWorkoutForDay] = useState(false);
 
   // Check if a category contains alternative exercises
   const isAlternativeCategory = (category: string) => {
@@ -88,23 +93,142 @@ const WorkoutCard: React.FC<WorkoutProps> = ({ workout, workoutStarted, workoutS
     return completed;
   };
 
-  // Check if all exercises are complete
+  // Check if user has completed ANY workout for the specific date of this day
   useEffect(() => {
-    if (workoutStarted && getCompletedExercises() === getTotalExercises() && getTotalExercises() > 0) {
-      setShowCompletion(true);
-    }
-  }, [completedSets, workoutStarted]);
+    const checkDayCompletion = async () => {
+      if (!auth0Id) {
+        setDayCompleted(false);
+        setHasCompletedWorkoutForDay(false);
+        return;
+      }
+
+      try {
+        const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+        
+        // Calculate the actual date for this day of the week
+        const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+        const today = new Date();
+        const todayDayIndex = today.getDay();
+        const targetDayIndex = days.indexOf(workout.day_of_week);
+        
+        // Calculate how many days to this day (can be negative for past days, positive for future)
+        let daysDifference = targetDayIndex - todayDayIndex;
+        
+        // If it's Sunday and we're past Sunday this week, go to next Sunday
+        if (targetDayIndex === 0 && daysDifference < 0) {
+          daysDifference += 7;
+        }
+        
+        const targetDate = new Date(today);
+        targetDate.setDate(today.getDate() + daysDifference);
+        const targetDateString = targetDate.toISOString().split('T')[0];
+        
+        console.log(`🔍 Checking workout completion for ${workout.day_of_week} on date ${targetDateString}`);
+        
+        const response = await fetch(`${API_URL}/api/workout-progress/check-day`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            auth0_id: auth0Id,
+            workout_date: targetDateString,
+          }),
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          setDayCompleted(data.hasCompletedWorkout);
+          setHasCompletedWorkoutForDay(data.hasCompletedWorkout);
+          if (data.hasCompletedWorkout) {
+            console.log(`✅ User has already completed a workout on ${workout.day_of_week} (${targetDateString})`);
+            onHasExistingProgress?.(true);
+          }
+        }
+      } catch (error) {
+        console.error('❌ Error checking day completion:', error);
+        setDayCompleted(false);
+        setHasCompletedWorkoutForDay(false);
+      }
+    };
+
+    checkDayCompletion();
+  }, [auth0Id, workout.day_of_week, onHasExistingProgress]);
+
+  // Fetch existing workout progress when component loads or workout changes
+  useEffect(() => {
+    const fetchWorkoutProgress = async () => {
+      if (!auth0Id || !workout.id) {
+        setLoadingProgress(false);
+        onHasExistingProgress?.(false);
+        return;
+      }
+
+      try {
+        setLoadingProgress(true);
+        const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+        
+        // Get today's date in YYYY-MM-DD format
+        const today = new Date().toISOString().split('T')[0];
+        
+        const response = await fetch(`${API_URL}/api/workout-progress/get`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            auth0_id: auth0Id,
+            workout_id: workout.id,
+            workout_date: today,
+          }),
+        });
+        
+        if (response.ok) {
+          const progressData = await response.json();
+          
+          if (progressData && progressData.completed_exercises) {
+            console.log('📥 Loaded existing workout progress:', progressData);
+            setCompletedSets(progressData.completed_exercises);
+            setHasExistingProgress(true);
+            onHasExistingProgress?.(true);
+            
+            // If all exercises are complete, show completion screen
+            if (progressData.completed) {
+              setShowCompletion(false); // Don't auto-show completion screen, let user review
+            }
+          } else {
+            setCompletedSets({});
+            setHasExistingProgress(false);
+            onHasExistingProgress?.(false);
+          }
+        }
+      } catch (error) {
+        console.error('❌ Error fetching workout progress:', error);
+        setCompletedSets({});
+        setHasExistingProgress(false);
+        onHasExistingProgress?.(false);
+      } finally {
+        setLoadingProgress(false);
+      }
+    };
+
+    fetchWorkoutProgress();
+  }, [auth0Id, workout.id, workout.day_of_week, onHasExistingProgress]);
+
+  // Don't auto-show completion screen - only show after clicking "Finish Workout"
+  // useEffect removed - completion screen only shown when user clicks finish
 
   // Reset completion when workout changes or is reset
   useEffect(() => {
-    if (!workoutStarted) {
+    if (!workoutStarted && !hasExistingProgress) {
       setCompletedSets({});
       setShowCompletion(false);
     }
-  }, [workoutStarted, workout.day_of_week]);
+  }, [workoutStarted, workout.day_of_week, hasExistingProgress]);
 
   const handleExerciseClick = (category: string, index: number, exercise: any) => {
-    if (!workoutStarted) {
+    // Allow clicking if workout is started OR if there's existing progress to review/modify
+    if (!workoutStarted && !hasExistingProgress) {
       toast.error('Please tap "Start Workout" before tracking exercises!', {
         icon: '⚠️',
       });
@@ -179,7 +303,7 @@ const WorkoutCard: React.FC<WorkoutProps> = ({ workout, workoutStarted, workoutS
               return (
                 <div 
                   key={index} 
-                  className={`exercise-item ${workoutStarted ? 'clickable' : ''} ${isComplete ? 'completed' : ''} ${isAlternative ? 'alternative' : ''}`}
+                  className={`exercise-item ${(workoutStarted || hasExistingProgress) ? 'clickable' : ''} ${isComplete ? 'completed' : ''} ${isAlternative ? 'alternative' : ''}`}
                   onClick={() => handleExerciseClick(category, index, exercise)}
                 >
                   <div className="exercise-header-row">
@@ -187,7 +311,7 @@ const WorkoutCard: React.FC<WorkoutProps> = ({ workout, workoutStarted, workoutS
                       {isAlternative && <span className="alternative-dot">○</span>}
                       {exercise.name}
                     </div>
-                    {workoutStarted && (
+                    {(workoutStarted || hasExistingProgress) && (
                       <div className="exercise-progress">
                         <span className="progress-text">{progress}</span>
                         {isComplete && <span className="check-mark">✓</span>}
@@ -251,6 +375,10 @@ const WorkoutCard: React.FC<WorkoutProps> = ({ workout, workoutStarted, workoutS
         if (response.ok) {
           console.log('✅ Workout progress saved!');
           toast.success('Workout saved to your history! 🎉');
+          setHasExistingProgress(true);
+          setDayCompleted(true); // Mark day as completed
+          onWorkoutComplete(); // Stop and hide the timer
+          setShowCompletion(true); // Show completion screen after saving
         } else {
           const error = await response.text();
           console.error('❌ Failed to save workout:', error);
@@ -267,7 +395,18 @@ const WorkoutCard: React.FC<WorkoutProps> = ({ workout, workoutStarted, workoutS
     }
     
     setIsSaving(false);
-    onWorkoutComplete();
+    // Don't call onWorkoutComplete here - wait for user to click Done on completion screen
+  };
+
+  const handleResetWorkout = () => {
+    console.log('🔄 Resetting workout UI state...');
+    setCompletedSets({});
+    setHasExistingProgress(false);
+    setDayCompleted(false);
+    onHasExistingProgress?.(false);
+    setShowCompletion(false);
+    onWorkoutComplete(); // Reset timer and workout state in parent
+    toast.success('Workout reset! Start fresh.');
   };
 
   if (showCompletion) {
@@ -285,31 +424,264 @@ const WorkoutCard: React.FC<WorkoutProps> = ({ workout, workoutStarted, workoutS
           </div>
           <button 
             className="completion-btn" 
-            onClick={handleFinishWorkout}
-            disabled={isSaving}
+            onClick={() => {
+              setShowCompletion(false);
+              // Don't call onWorkoutComplete here since timer is already stopped
+              // Keep dayCompleted true so user sees the "day completed" message
+            }}
           >
-            {isSaving ? 'Saving...' : 'Finish Workout'}
+            Done
           </button>
         </div>
       </div>
     );
   }
 
+  if (loadingProgress) {
+    return (
+      <div className="workout-card">
+        <div style={{ padding: '2rem', textAlign: 'center' }}>
+          <p>Loading workout progress...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Calculate the target date for this day
+  const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+  const today = days[new Date().getDay()];
+  const isToday = workout.day_of_week === today;
+  
+  const todayDate = new Date();
+  const todayDayIndex = todayDate.getDay();
+  const targetDayIndex = days.indexOf(workout.day_of_week);
+  let daysDifference = targetDayIndex - todayDayIndex;
+  
+  // If it's Sunday and we're past Sunday this week, go to next Sunday
+  if (targetDayIndex === 0 && daysDifference < 0) {
+    daysDifference += 7;
+  }
+  
+  const targetDate = new Date(todayDate);
+  targetDate.setDate(todayDate.getDate() + daysDifference);
+  const formattedDate = targetDate.toLocaleDateString('en-US', { 
+    weekday: 'long', 
+    year: 'numeric', 
+    month: 'long', 
+    day: 'numeric' 
+  });
+  
+  const isPastDay = daysDifference < 0;
+  const isFutureDay = daysDifference > 0;
+
+  // Show "day completed" message if user has already completed a workout today
+  if (dayCompleted) {
+    return (
+      <div className="workout-card">
+        <div style={{ padding: '3rem 2rem', textAlign: 'center' }}>
+          <div style={{ fontSize: '4rem', marginBottom: '1rem' }}>✅</div>
+          <div style={{ 
+            fontSize: '0.9rem', 
+            color: 'var(--text-secondary)', 
+            marginBottom: '0.5rem',
+            fontWeight: '600'
+          }}>
+            {formattedDate}
+          </div>
+          <h2 style={{ 
+            fontSize: '1.5rem', 
+            marginBottom: '1rem',
+            background: 'linear-gradient(135deg, var(--primary-color), var(--secondary-color))',
+            WebkitBackgroundClip: 'text',
+            WebkitTextFillColor: 'transparent',
+            backgroundClip: 'text'
+          }}>
+            Your workout for {workout.day_of_week} was completed. Nice job!
+          </h2>
+          <p style={{ 
+            color: 'var(--text-secondary)', 
+            marginBottom: '2rem',
+            fontSize: '1.1rem',
+            lineHeight: '1.6'
+          }}>
+            {isToday ? (
+              <>
+                You've already completed a workout today. Great job! 🎉
+                <br />
+                Come back tomorrow for your next workout.
+              </>
+            ) : (
+              <>
+                You completed this workout on its scheduled day. 🎉
+                <br />
+                Keep up the great work!
+              </>
+            )}
+          </p>
+          {isToday && (
+            <button 
+              onClick={handleResetWorkout}
+              style={{
+                background: '#ef4444',
+                color: 'white',
+                border: 'none',
+                padding: '0.75rem 1.5rem',
+                borderRadius: '8px',
+                fontSize: '1rem',
+                fontWeight: '600',
+                cursor: 'pointer',
+              }}
+            >
+              🔄 Reset & Do Another Workout
+            </button>
+          )}
+        </div>
+      </div>
+    );
+  }
+  
+  // Show "future workout" message for future days
+  if (isFutureDay) {
+    return (
+      <div className="workout-card">
+        <div style={{ padding: '3rem 2rem', textAlign: 'center' }}>
+          <div style={{ fontSize: '4rem', marginBottom: '1rem' }}>⏰</div>
+          <div style={{ 
+            fontSize: '0.9rem', 
+            color: 'var(--text-secondary)', 
+            marginBottom: '0.5rem',
+            fontWeight: '600'
+          }}>
+            {formattedDate}
+          </div>
+          <h2 style={{ 
+            fontSize: '1.5rem', 
+            marginBottom: '1rem',
+            background: 'linear-gradient(135deg, var(--primary-color), var(--secondary-color))',
+            WebkitBackgroundClip: 'text',
+            WebkitTextFillColor: 'transparent',
+            backgroundClip: 'text'
+          }}>
+            Come back tomorrow to see this workout!
+          </h2>
+          <p style={{ 
+            color: 'var(--text-secondary)', 
+            marginBottom: '2rem',
+            fontSize: '1.1rem',
+            lineHeight: '1.6'
+          }}>
+            This workout is scheduled for {workout.day_of_week}. 
+            <br />
+            Focus on today's workout first! 💪
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  // Show "missed workout" message for past days with no completed workout
+  if (isPastDay && !hasCompletedWorkoutForDay) {
+    return (
+      <div className="workout-card">
+        <div style={{ padding: '3rem 2rem', textAlign: 'center' }}>
+          <div style={{ fontSize: '4rem', marginBottom: '1rem' }}>😔</div>
+          <div style={{ 
+            fontSize: '0.9rem', 
+            color: 'var(--text-secondary)', 
+            marginBottom: '0.5rem',
+            fontWeight: '600'
+          }}>
+            {formattedDate}
+          </div>
+          <h2 style={{ 
+            fontSize: '1.5rem', 
+            marginBottom: '1rem',
+            background: 'linear-gradient(135deg, #ef4444, #dc2626)',
+            WebkitBackgroundClip: 'text',
+            WebkitTextFillColor: 'transparent',
+            backgroundClip: 'text'
+          }}>
+            Oh no! You missed the workout this day.
+          </h2>
+          <p style={{ 
+            color: 'var(--text-secondary)', 
+            marginBottom: '2rem',
+            fontSize: '1.1rem',
+            lineHeight: '1.6'
+          }}>
+            That's okay - hit today's workout and get back at it! 💪
+            <br />
+            Every day is a new opportunity to crush your goals.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  const allExercisesComplete = getCompletedExercises() === getTotalExercises() && getTotalExercises() > 0;
+
   return (
     <div className="workout-card">
-      {workoutStarted && (
-        <div className="progress-bar-container">
-          <div className="progress-info">
-            <span>Progress: {getCompletedExercises()} / {getTotalExercises()} exercises</span>
-            <span>{Math.round((getCompletedExercises() / getTotalExercises()) * 100)}%</span>
+      {(workoutStarted || hasExistingProgress) && (
+        <>
+          <div className="progress-bar-container">
+            <div className="progress-info">
+              <span>Progress: {getCompletedExercises()} / {getTotalExercises()} exercises</span>
+              <span>{Math.round((getCompletedExercises() / getTotalExercises()) * 100)}%</span>
+            </div>
+            <div className="progress-bar">
+              <div 
+                className="progress-bar-fill" 
+                style={{ width: `${(getCompletedExercises() / getTotalExercises()) * 100}%` }}
+              />
+            </div>
           </div>
-          <div className="progress-bar">
-            <div 
-              className="progress-bar-fill" 
-              style={{ width: `${(getCompletedExercises() / getTotalExercises()) * 100}%` }}
-            />
+
+          {/* Action buttons below progress bar */}
+          <div style={{ padding: '0 1rem 1rem 1rem', display: 'flex', flexDirection: 'column', gap: '0.75rem', alignItems: 'center' }}>
+            {workoutStarted && allExercisesComplete && (
+              <button 
+                className="finish-workout-btn" 
+                onClick={handleFinishWorkout}
+                disabled={isSaving}
+                style={{
+                  background: '#10b981',
+                  color: 'white',
+                  border: 'none',
+                  padding: '1rem 2rem',
+                  borderRadius: '8px',
+                  fontSize: '1.1rem',
+                  fontWeight: '700',
+                  cursor: isSaving ? 'not-allowed' : 'pointer',
+                  opacity: isSaving ? 0.5 : 1,
+                  width: '100%',
+                  maxWidth: '300px',
+                }}
+              >
+                {isSaving ? '💾 Saving...' : '✅ Finish Workout'}
+              </button>
+            )}
+            
+            <button 
+              className="reset-workout-btn" 
+              onClick={handleResetWorkout}
+              style={{
+                background: '#ef4444',
+                color: 'white',
+                border: 'none',
+                padding: '0.75rem 1.5rem',
+                borderRadius: '8px',
+                fontSize: '1rem',
+                fontWeight: '600',
+                cursor: 'pointer',
+                width: '100%',
+                maxWidth: '300px',
+              }}
+            >
+              {hasExistingProgress && !workoutStarted ? '🔄 Do It Again' : '🔄 Reset Workout'}
+            </button>
           </div>
-        </div>
+        </>
       )}
 
       <div className="workout-header">
@@ -319,6 +691,12 @@ const WorkoutCard: React.FC<WorkoutProps> = ({ workout, workoutStarted, workoutS
           <span className="workout-duration">⏱️ {workout.duration} min</span>
         </div>
       </div>
+
+      {hasExistingProgress && !workoutStarted && (
+        <div className="workout-instructions" style={{ background: '#10b981', color: 'white' }}>
+          <p>✅ You've already completed this workout for the day! Tap exercises to update.</p>
+        </div>
+      )}
 
       {workoutStarted && (
         <div className="workout-instructions">

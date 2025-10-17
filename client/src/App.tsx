@@ -29,6 +29,8 @@ function App() {
   const [hasSyncedThisSession, setHasSyncedThisSession] = useState(false);
   const [workoutHistory, setWorkoutHistory] = useState<any[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
+  const [hasExistingProgress, setHasExistingProgress] = useState(false);
+  const [workoutCompleted, setWorkoutCompleted] = useState(false);
 
   // Log authentication status for debugging
   useEffect(() => {
@@ -160,16 +162,23 @@ function App() {
     setSelectedDay(today);
   };
 
+  // Reset hasExistingProgress and workoutCompleted when selected day changes
+  useEffect(() => {
+    setHasExistingProgress(false);
+    setWorkoutCompleted(false);
+  }, [selectedDay]);
+
   const startWorkout = () => {
     setWorkoutStarted(true);
     setWorkoutStartTime(Date.now());
     setElapsedTime(0);
   };
 
-  const resetWorkout = () => {
+  const handleWorkoutComplete = () => {
     setWorkoutStarted(false);
     setWorkoutStartTime(null);
     setElapsedTime(0);
+    setWorkoutCompleted(true);
   };
 
   const formatTime = (seconds: number) => {
@@ -183,6 +192,11 @@ function App() {
   };
 
   const selectedWorkout = workouts.find(w => w.day_of_week === selectedDay);
+  
+  // Check if selected day is today
+  const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+  const today = days[new Date().getDay()];
+  const isToday = selectedDay === today;
 
   // Show error if Auth0 has an error
   if (error) {
@@ -361,28 +375,29 @@ function App() {
 
           {selectedWorkout && (
             <>
-              {!workoutStarted ? (
+              {!workoutStarted && !hasExistingProgress && !workoutCompleted && isToday ? (
                 <div className="workout-start-container">
                   <button className="start-workout-btn" onClick={startWorkout}>
                     Start Workout
                   </button>
                   <p className="start-hint">Tap to begin timing your workout</p>
                 </div>
-              ) : (
+              ) : workoutStarted ? (
                 <div className="workout-timer">
                   <div className="timer-display">
                     <span className="timer-label">Workout Time:</span>
                     <span className="timer-value">{formatTime(elapsedTime)}</span>
                   </div>
                 </div>
-              )}
+              ) : null}
               
               <WorkoutCard 
                 workout={selectedWorkout} 
                 workoutStarted={workoutStarted}
                 workoutStartTime={workoutStartTime}
                 auth0Id={user?.sub}
-                onWorkoutComplete={resetWorkout}
+                onWorkoutComplete={handleWorkoutComplete}
+                onHasExistingProgress={setHasExistingProgress}
               />
             </>
           )}

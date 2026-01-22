@@ -11,14 +11,16 @@
   ],
   "routes": [
     {
-      "src": "/(.*)",
-      "dest": "/client/$1"
-    }
-  ],
-  "rewrites": [
+      "src": "/assets/(.*)",
+      "dest": "/client/dist/assets/$1"
+    },
     {
-      "source": "/(.*)",
-      "destination": "/index.html"
+      "src": "/(.*\\.(js|css|ico|png|jpg|svg|woff|woff2))",
+      "dest": "/client/dist/$1"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/client/dist/index.html"
     }
   ]
 }

@@ -386,6 +386,37 @@
   transform: translateY(0);
 }
 
+/* Gradient text styles - using CSS classes for better browser support */
+.gradient-text-primary {
+  background: linear-gradient(
+    135deg,
+    var(--primary-color),
+    var(--secondary-color)
+  );
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  /* Fallback for browsers that don't support background-clip: text */
+  color: var(--primary-color);
+}
+
+.gradient-text-error {
+  background: linear-gradient(135deg, #ef4444, #dc2626);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  /* Fallback for browsers that don't support background-clip: text */
+  color: #ef4444;
+}
+
+/* Ensure gradient text is properly supported */
+@supports (background-clip: text) or (-webkit-background-clip: text) {
+  .gradient-text-primary,
+  .gradient-text-error {
+    color: transparent;
+  }
+}
+
 @media (max-width: 768px) {
   .workout-card {
     padding: 1.5rem;

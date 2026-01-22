@@ -125,6 +125,10 @@ const WorkoutCard: React.FC<WorkoutProps> = ({ workout, workoutStarted, workoutS
         
         console.log(`🔍 Checking workout completion for ${workout.day_of_week} on date ${targetDateString}`);
         
+        // Add timeout to prevent hanging
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+        
         const response = await fetch(`${API_URL}/api/workout-progress/check-day`, {
           method: 'POST',
           headers: {
@@ -134,7 +138,10 @@ const WorkoutCard: React.FC<WorkoutProps> = ({ workout, workoutStarted, workoutS
             auth0_id: auth0Id,
             workout_date: targetDateString,
           }),
+          signal: controller.signal
         });
+        
+        clearTimeout(timeoutId);
         
         if (response.ok) {
           const data = await response.json();
@@ -171,6 +178,10 @@ const WorkoutCard: React.FC<WorkoutProps> = ({ workout, workoutStarted, workoutS
         // Get today's date in YYYY-MM-DD format
         const today = new Date().toISOString().split('T')[0];
         
+        // Add timeout to prevent hanging
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+        
         const response = await fetch(`${API_URL}/api/workout-progress/get`, {
           method: 'POST',
           headers: {
@@ -181,7 +192,10 @@ const WorkoutCard: React.FC<WorkoutProps> = ({ workout, workoutStarted, workoutS
             workout_id: workout.id,
             workout_date: today,
           }),
+          signal: controller.signal
         });
+        
+        clearTimeout(timeoutId);
         
         if (response.ok) {
           const progressData = await response.json();
@@ -354,6 +368,11 @@ const WorkoutCard: React.FC<WorkoutProps> = ({ workout, workoutStarted, workoutS
         const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
         
         console.log('💾 Saving workout progress...');
+        
+        // Add timeout to prevent hanging
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+        
         const response = await fetch(`${API_URL}/api/workout-progress/save`, {
           method: 'POST',
           headers: {
@@ -370,7 +389,10 @@ const WorkoutCard: React.FC<WorkoutProps> = ({ workout, workoutStarted, workoutS
             total_duration: totalDuration,
             completed: true,
           }),
+          signal: controller.signal
         });
+        
+        clearTimeout(timeoutId);
         
         if (response.ok) {
           console.log('✅ Workout progress saved!');
@@ -488,13 +510,9 @@ const WorkoutCard: React.FC<WorkoutProps> = ({ workout, workoutStarted, workoutS
           }}>
             {formattedDate}
           </div>
-          <h2 style={{ 
+          <h2 className="gradient-text-primary" style={{ 
             fontSize: '1.5rem', 
-            marginBottom: '1rem',
-            background: 'linear-gradient(135deg, var(--primary-color), var(--secondary-color))',
-            WebkitBackgroundClip: 'text',
-            WebkitTextFillColor: 'transparent',
-            backgroundClip: 'text'
+            marginBottom: '1rem'
           }}>
             Your workout for {workout.day_of_week} was completed. Nice job!
           </h2>
@@ -532,7 +550,7 @@ const WorkoutCard: React.FC<WorkoutProps> = ({ workout, workoutStarted, workoutS
                 cursor: 'pointer',
               }}
             >
-              🔄 Reset & Do Another Workout
+              🔄 Do This Workout Again!
             </button>
           )}
         </div>
@@ -554,13 +572,9 @@ const WorkoutCard: React.FC<WorkoutProps> = ({ workout, workoutStarted, workoutS
           }}>
             {formattedDate}
           </div>
-          <h2 style={{ 
+          <h2 className="gradient-text-primary" style={{ 
             fontSize: '1.5rem', 
-            marginBottom: '1rem',
-            background: 'linear-gradient(135deg, var(--primary-color), var(--secondary-color))',
-            WebkitBackgroundClip: 'text',
-            WebkitTextFillColor: 'transparent',
-            backgroundClip: 'text'
+            marginBottom: '1rem'
           }}>
             Come back tomorrow to see this workout!
           </h2>
@@ -593,13 +607,9 @@ const WorkoutCard: React.FC<WorkoutProps> = ({ workout, workoutStarted, workoutS
           }}>
             {formattedDate}
           </div>
-          <h2 style={{ 
+          <h2 className="gradient-text-error" style={{ 
             fontSize: '1.5rem', 
-            marginBottom: '1rem',
-            background: 'linear-gradient(135deg, #ef4444, #dc2626)',
-            WebkitBackgroundClip: 'text',
-            WebkitTextFillColor: 'transparent',
-            backgroundClip: 'text'
+            marginBottom: '1rem'
           }}>
             Oh no! You missed the workout this day.
           </h2>

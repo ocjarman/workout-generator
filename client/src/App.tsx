@@ -31,10 +31,28 @@ function App() {
   const [historyLoading, setHistoryLoading] = useState(false);
   const [hasExistingProgress, setHasExistingProgress] = useState(false);
   const [workoutCompleted, setWorkoutCompleted] = useState(false);
+  const [apiError, setApiError] = useState<string | null>(null);
 
-  // Log authentication status for debugging
+  // Log authentication status and API URL for debugging
   useEffect(() => {
+    const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+    const isProduction = window.location.hostname !== 'localhost' && !window.location.hostname.includes('127.0.0.1');
+    
     console.log('Auth Status:', { isAuthenticated, authLoading, user, error });
+    console.log('API URL:', API_URL);
+    console.log('VITE_API_URL env var:', import.meta.env.VITE_API_URL || 'NOT SET - using localhost default');
+    console.log('Is Production:', isProduction);
+    
+    // Warn if API URL is not set in production or if using localhost in production
+    if (isProduction) {
+      if (!import.meta.env.VITE_API_URL) {
+        console.error('⚠️ WARNING: VITE_API_URL environment variable is not set in production!');
+        setApiError('API URL not configured. Please set VITE_API_URL environment variable in Vercel settings.');
+      } else if (API_URL.includes('localhost') || API_URL.includes('127.0.0.1')) {
+        console.error('⚠️ WARNING: API URL is set to localhost in production!');
+        setApiError(`Invalid API URL: ${API_URL}\n\nYou cannot use localhost in production. Please set VITE_API_URL to your production backend URL in Vercel settings.`);
+      }
+    }
   }, [isAuthenticated, authLoading, user, error]);
 
   useEffect(() => {
@@ -63,6 +81,10 @@ function App() {
           picture: user.picture
         });
         
+        // Add timeout to prevent hanging
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+        
         const response = await fetch(`${API_URL}/api/users/save`, {
           method: 'POST',
           headers: {
@@ -74,7 +96,10 @@ function App() {
             name: user.name,
             picture: user.picture,
           }),
+          signal: controller.signal
         });
+        
+        clearTimeout(timeoutId);
         
         if (response.ok) {
           const userData = await response.json();
@@ -84,7 +109,15 @@ function App() {
           console.error('❌ Failed to save user:', response.status, errorData);
         }
       } catch (error: any) {
+        const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
         console.error('❌ Error saving user:', error);
+        console.error('API URL attempted:', `${API_URL}/api/users/save`);
+        
+        if (error.name === 'AbortError') {
+          console.error('Request timed out - API may be unreachable');
+        } else if (error.message?.includes('Failed to fetch')) {
+          console.error('Failed to fetch - check API URL and CORS configuration');
+        }
       }
     };
 
@@ -103,6 +136,11 @@ function App() {
       const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
       
       console.log('📡 Fetching workout history...');
+      
+      // Add timeout to prevent hanging
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+      
       const response = await fetch(`${API_URL}/api/workout-progress/history`, {
         method: 'POST',
         headers: {
@@ -111,7 +149,10 @@ function App() {
         body: JSON.stringify({
           auth0_id: user.sub,
         }),
+        signal: controller.signal
       });
+      
+      clearTimeout(timeoutId);
       
       if (response.ok) {
         const data = await response.json();
@@ -146,13 +187,43 @@ function App() {
   const fetchWorkouts = async () => {
     try {
       const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
-      const response = await fetch(`${API_URL}/api/workouts`);
+      console.log('🌐 Fetching workouts from:', `${API_URL}/api/workouts`);
+      
+      // Add timeout to prevent hanging
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+      
+      const response = await fetch(`${API_URL}/api/workouts`, {
+        signal: controller.signal
+      });
+      
+      clearTimeout(timeoutId);
+      
+      if (!response.ok) {
+        throw new Error(`Failed to fetch workouts: ${response.status} ${response.statusText}`);
+      }
+      
       const data = await response.json();
       setWorkouts(data);
       setLoading(false);
-    } catch (error) {
-      console.error('Error fetching workouts:', error);
+      setApiError(null); // Clear any previous errors
+    } catch (error: any) {
+      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+      console.error('❌ Error fetching workouts:', error);
+      console.error('API URL attempted:', `${API_URL}/api/workouts`);
+      
+      // Set empty workouts array so app can still render
+      setWorkouts([]);
       setLoading(false);
+      
+      // Set user-friendly error message
+      if (error.name === 'AbortError') {
+        setApiError(`Request timed out. The API at ${API_URL} is not responding. Please check your VITE_API_URL environment variable.`);
+      } else if (error.message.includes('Failed to fetch')) {
+        setApiError(`Cannot connect to API at ${API_URL}. Please verify:\n1. VITE_API_URL is set correctly in Vercel\n2. The backend server is running\n3. CORS is configured properly`);
+      } else {
+        setApiError(`Error loading workouts: ${error.message}`);
+      }
     }
   };
 
@@ -288,6 +359,42 @@ function App() {
       <div className="loading-container">
         <div className="spinner"></div>
         <p>Loading your workouts...</p>
+      </div>
+    );
+  }
+
+  // Show API error if present
+  if (apiError) {
+    const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+    return (
+      <div className="app">
+        <div className="loading-container">
+          <div className="error-message">
+            <h2>⚠️ API Connection Error</h2>
+            <p style={{ whiteSpace: 'pre-line', marginBottom: '1rem' }}>{apiError}</p>
+            <div className="error-solution">
+              <p><strong>Current API URL:</strong> <code>{API_URL}</code></p>
+              <p><strong>To fix this:</strong></p>
+              <ol style={{ textAlign: 'left', display: 'inline-block' }}>
+                <li>Go to your Vercel dashboard</li>
+                <li>Navigate to Settings → Environment Variables</li>
+                <li>Add or update <code>VITE_API_URL</code> with your backend URL</li>
+                <li>Redeploy your application</li>
+              </ol>
+            </div>
+            <p className="error-hint">
+              Check the browser console (F12) for more details
+            </p>
+            <div className="error-actions">
+              <button onClick={() => { setApiError(null); fetchWorkouts(); }} className="retry-btn primary">
+                Retry Connection
+              </button>
+              <button onClick={() => window.location.reload()} className="retry-btn secondary">
+                Reload Page
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
     );
   }

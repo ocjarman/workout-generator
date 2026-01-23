@@ -1,5 +1,5 @@
-import React from 'react';
-import './WorkoutHistory.css';
+import React from "react";
+import "./workout-history.css";
 
 interface WorkoutHistoryProps {
   history: HistoryItem[];
@@ -30,18 +30,22 @@ const WorkoutHistory: React.FC<WorkoutHistoryProps> = ({ history }) => {
     const today = new Date();
     const yesterday = new Date(today);
     yesterday.setDate(yesterday.getDate() - 1);
-    
+
     if (date.toDateString() === today.toDateString()) {
-      return 'Today';
+      return "Today";
     } else if (date.toDateString() === yesterday.toDateString()) {
-      return 'Yesterday';
+      return "Yesterday";
     } else {
-      return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+      return date.toLocaleDateString("en-US", {
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+      });
     }
   };
 
   const getCompletedExercisesCount = (completedExercises: any) => {
-    if (!completedExercises || typeof completedExercises !== 'object') {
+    if (!completedExercises || typeof completedExercises !== "object") {
       return 0;
     }
     return Object.keys(completedExercises).length;
@@ -64,7 +68,9 @@ const WorkoutHistory: React.FC<WorkoutHistoryProps> = ({ history }) => {
         {history.map((item) => (
           <div key={item.id} className="history-card">
             <div className="history-card-header">
-              <div className="history-date">{formatDate(item.workout_date)}</div>
+              <div className="history-date">
+                {formatDate(item.workout_date)}
+              </div>
               <div className="history-day">{item.day_of_week}</div>
             </div>
             <div className="history-card-body">
@@ -72,11 +78,16 @@ const WorkoutHistory: React.FC<WorkoutHistoryProps> = ({ history }) => {
               <div className="history-stats">
                 <div className="history-stat">
                   <span className="stat-icon">⏱️</span>
-                  <span className="stat-text">{formatDuration(item.total_duration)}</span>
+                  <span className="stat-text">
+                    {formatDuration(item.total_duration)}
+                  </span>
                 </div>
                 <div className="history-stat">
                   <span className="stat-icon">✅</span>
-                  <span className="stat-text">{getCompletedExercisesCount(item.completed_exercises)} exercises</span>
+                  <span className="stat-text">
+                    {getCompletedExercisesCount(item.completed_exercises)}{" "}
+                    exercises
+                  </span>
                 </div>
               </div>
             </div>
@@ -94,4 +105,3 @@ const WorkoutHistory: React.FC<WorkoutHistoryProps> = ({ history }) => {
 };
 
 export default WorkoutHistory;
-

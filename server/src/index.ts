@@ -39,6 +39,32 @@ app.use(express.json());
 async function initializeDatabase() {
   try {
     console.log('🔄 Initializing database...');
+    
+    // Test connection first
+    try {
+      await pool.query('SELECT 1');
+      console.log('✅ Database connection verified');
+    } catch (connError: any) {
+      console.error('❌ Database connection failed during initialization');
+      console.error('Error:', connError.message);
+      console.error('Error code:', connError.code);
+      console.error('Error hostname:', connError.hostname);
+      
+      if (connError.code === 'ENOTFOUND') {
+        console.error('\n🔧 FIX: The database hostname cannot be resolved.');
+        console.error('This usually means:');
+        console.error('1. DATABASE_URL is incorrect or missing');
+        console.error('2. Database is not linked to your web service on Render');
+        console.error('3. You\'re using External Database URL instead of Internal');
+        console.error('\nTo fix on Render:');
+        console.error('1. Go to your PostgreSQL database settings');
+        console.error('2. Copy the "Internal Database URL" (not External)');
+        console.error('3. Add it as DATABASE_URL in your web service environment variables');
+        console.error('4. Make sure the database is "Linked" to your web service');
+      }
+      throw connError;
+    }
+    
     await createTables();
     
     // Check if database is empty
@@ -237,9 +263,23 @@ app.get('/api/workouts', async (req, res) => {
       ORDER BY day_number
     `);
     res.json(result.rows);
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error fetching workouts:', error);
-    res.status(500).json({ error: 'Failed to fetch workouts' });
+    
+    // Provide more detailed error information
+    if (error.code === 'ENOTFOUND') {
+      console.error('Database hostname not found. Check DATABASE_URL configuration.');
+      res.status(503).json({ 
+        error: 'Database connection failed',
+        message: 'Cannot connect to database. Please check server configuration.',
+        code: error.code
+      });
+    } else {
+      res.status(500).json({ 
+        error: 'Failed to fetch workouts',
+        message: error.message 
+      });
+    }
   }
 });
 
@@ -679,7 +719,17 @@ app.get('/api/workout-progress/history', checkJwt, async (req, res) => {
   }
 });
 
+// Start server with error handling
 app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
+  console.log(`✅ Server running on port ${PORT}`);
+  console.log(`🌐 Environment: ${process.env.NODE_ENV || 'development'}`);
+  console.log(`📊 Database: ${process.env.DATABASE_URL ? 'Configured' : 'NOT CONFIGURED'}`);
+  console.log(`🔐 Auth0 Domain: ${process.env.AUTH0_DOMAIN || 'NOT CONFIGURED'}`);
+}).on('error', (err: any) => {
+  console.error('❌ Failed to start server:', err);
+  if (err.code === 'EADDRINUSE') {
+    console.error(`Port ${PORT} is already in use`);
+  }
+  process.exit(1);
 });
 
